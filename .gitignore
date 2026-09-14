@@ -1,0 +1,21 @@
+# Dependencies and build output
+node_modules/
+.next/
+coverage/
+
+# Local configuration and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Tooling
+*.tsbuildinfo
+.eslintcache
+
+# Python tooling reserved for the later Intelligent Contract phase
+.venv/
+__pycache__/
+.pytest_cache/
+artifacts/
+
