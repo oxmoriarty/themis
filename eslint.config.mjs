@@ -9,5 +9,13 @@ const compat = new FlatCompat({
 export default defineConfig([
   js.configs.recommended,
   ...compat.extends("next/core-web-vitals"),
-  globalIgnores([".next/**", "coverage/**", "node_modules/**"]),
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      // The base JavaScript rule reports TypeScript interface signatures and
+      // parameter properties as runtime-unused values.
+      "no-unused-vars": "off",
+    },
+  },
+  globalIgnores([".next/**", ".pytest_cache/**", "coverage/**", "node_modules/**"]),
 ]);

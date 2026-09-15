@@ -12,12 +12,18 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "example:agent": "tsx src/examples/agent-client.ts"
   },
   "dependencies": {
+    "@genlayer/transaction-kit": "0.1.0-rc.2",
+    "@genlayer/transaction-kit-react": "0.1.0-rc.2",
+    "@supabase/supabase-js": "2.97.0",
+    "genlayer-js": "2.0.0-rc.1",
     "next": "^15.5.25",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "viem": "2.56.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -27,8 +33,9 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^15.5.25",
+    "tsx": "4.23.13",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "4.1.11"
   },
   "overrides": {
     "postcss": "8.5.23"

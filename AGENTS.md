@@ -2,15 +2,16 @@
 
 ## Current project state
 
-This repository is at the end of Phase Zero. There is no application or contract implementation yet. Read [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), `BUILD_SPEC.md`, `AGENT_TANK_RULES.md`, and every file in `docs-source/genlayer-docs/` before changing product, contract, network, wallet, or deployment behavior. Treat the supplied GenLayer documentation as the source of truth; do not substitute remembered SDK APIs or online examples without reconciling them to the supplied material.
+Phase Zero, repository/data-model work, the direct-tested Intelligent Contract layer, and the typed GenLayerJS client wrapper are complete. The application UI, wallet UI, deployment/indexing layer, remote integration suite, and Studio Next deployment are not. Read [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), `BUILD_SPEC.md`, `AGENT_TANK_RULES.md`, and every file in `docs-source/genlayer-docs/` before changing product, contract, network, wallet, or deployment behavior. Treat the supplied GenLayer documentation as the source of truth; reconcile later official release guidance against it rather than substituting remembered APIs.
 
 `docs-source/branding/themisLogoBlack.png` and `docs-source/branding/themisLogoWhite.png` are the official logo variants. Preserve their aspect ratio and colors; use black on light surfaces and white on dark surfaces.
 
 ## Non-negotiable GenLayer rules
 
 - The remote target is **Studio Next**, not Bradbury: RPC `https://studio-next.genlayer.com/api`, chain ID `61997`, explorer `https://explorer-studio-dev.genlayer.com/`.
-- The general documentation also names a different “Studionet” endpoint/chain and SDK chain alias. Do not guess that the alias maps to Studio Next. Complete the compatibility probe documented in the implementation plan and require `eth_chainId == 61997` before enabling a deployment or wallet write.
-- Required project release line: `genlayer-js@2.0.0-rc.1`, `@genlayer/transaction-kit@0.1.0-rc.2`, and the matching React adapter at `0.1.0-rc.2`. The source does not specify the adapter package name; verify it first. Do not silently upgrade/downgrade these prereleases.
+- `studionet` is the stable Studio identity and must never be pointed at Studio Next. The installed v0.6 RC exposes `studioDevnet` (chain `61997`) but its built-in RPC is `https://studio-dev.genlayer.com/api`; use the official v2-dev boilerplate pattern: extend that definition as one shared chain object while overriding its RPC/name/native currency to the required Studio Next values. Require `eth_chainId == 61997` from both RPC and wallet before enabling a deployment or wallet write.
+- Required, lockfile-pinned project release line: `genlayer-js@2.0.0-rc.1`, `@genlayer/transaction-kit@0.1.0-rc.2`, and `@genlayer/transaction-kit-react@0.1.0-rc.2`. These are exact pins, not ranges. Do not silently upgrade/downgrade them.
+- Studio Next is fee-aware. Before any deploy or live write, run representative fee-profile tests for every materially expensive/message-emitting branch, commit the generated profile, request a current SDK/Transaction Kit estimate, and submit its `distribution` and `feeValue` unchanged. Never hand-build fee arithmetic or call Studio Next gasless based on its name; detect a gasless estimate at runtime. Show the deposit, consumed amount, and finalized refund as distinct values.
 - Every generated single-file Intelligent Contract must begin on its literal first line with:
 
   ```python
@@ -40,7 +41,7 @@ This repository is at the end of Phase Zero. There is no application or contract
 
 ## Required quality gates
 
-Before merging a contract change: lint it, run direct tests with LLM/web mocks, exercise validator disagreement, then integration tests. Direct tests run leader logic and are not consensus proof. Before declaring a deployed flow successful: check Studio Next chain ID, receipt execution result, schema/code, deployed address, and final transaction state.
+Before merging a contract change: lint it, run direct tests with LLM/web mocks, exercise validator disagreement, then integration tests. Direct tests run leader logic and are not consensus proof. Before deployment, generate a current fee profile; regenerate it whenever contract code, GenVM/Studio, or fee policy changes. Before declaring a deployed flow successful: check Studio Next chain ID, receipt execution result (`FINISHED_WITH_RETURN` via the SDK `isSuccessful` helper or Transaction Kit normalized outcome), schema/code, deployed address, and final transaction state.
 
 Before calling any product phase complete: run strict type checking, lint, relevant unit/API/component tests, contract tests, production build, a wallet/network smoke test, dependency/security review, and record real results in `docs/FINAL_VERIFICATION.md`. Do not claim a command, deployment, payment, or test was run when it was not.
 

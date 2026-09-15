@@ -1,0 +1,4 @@
+# Resolved against the local contract suite on 2026-09-15.
+# The pinned contract runner is declared in the first line of each contract.
+genlayer-test==0.29.2
+genvm-linter==0.11.0
