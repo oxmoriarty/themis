@@ -21,6 +21,7 @@ const service = {
   metadataUri: null,
   metadataHash: null,
   integration: null,
+  a2a: null,
   availability: "ACTIVE",
   source: "REAL",
   completedMatterCount: 0,
@@ -119,6 +120,12 @@ describe("ThemisClient", () => {
       description: service.description,
       services: service.services,
       integration: { protocol: "themis-service-endpoint-v1", url: "http://localhost:8080/contact", capabilities: ["INQUIRY"] },
+    }).success).toBe(false);
+    expect(registerServiceRequestSchema.safeParse({
+      name: service.name,
+      description: service.description,
+      services: service.services,
+      a2a: { agentCardUrl: "https://[::1]/.well-known/agent-card.json" },
     }).success).toBe(false);
   });
 

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { executionResultSchema, genLayerTransactionStatusSchema } from "@/domain/chain";
 import { uuidSchema, walletAddressSchema } from "@/domain/identifiers";
 import { matterStateSchema } from "@/domain/lifecycle";
-import { legalServiceSchema, serviceEndpointCapabilitySchema, serviceEndpointDescriptorSchema, serviceEndpointProtocol } from "@/domain/service";
+import { legalServiceSchema, serviceA2aDescriptorSchema, serviceEndpointCapabilitySchema, serviceEndpointDescriptorSchema, serviceEndpointProtocol } from "@/domain/service";
 
 export const serviceSearchQuerySchema = z.object({
   query: z.string().trim().min(1).max(120).optional(),
@@ -39,6 +39,7 @@ export const registerServiceRequestSchema = z.object({
   jurisdictions: z.array(z.string().trim().min(1).max(80)).max(16).default([]),
   metadataUri: z.string().url().max(2_048).nullable().optional(),
   integration: serviceEndpointDescriptorSchema.nullable().optional(),
+  a2a: serviceA2aDescriptorSchema.nullable().optional(),
 }).strict();
 
 export type RegisterServiceRequest = z.input<typeof registerServiceRequestSchema>;

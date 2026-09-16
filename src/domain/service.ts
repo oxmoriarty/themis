@@ -24,6 +24,17 @@ function isPrivateIpv4Host(hostname: string): boolean {
     || pieces[0] === 0;
 }
 
+function isPrivateIpv6Host(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return normalized === "::" || normalized === "::1"
+    || normalized.startsWith("fc") || normalized.startsWith("fd")
+    || normalized.startsWith("fe80:")
+    || normalized.startsWith("::ffff:127.")
+    || normalized.startsWith("::ffff:10.")
+    || normalized.startsWith("::ffff:192.168.")
+    || /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(normalized);
+}
+
 /**
  * A published, caller-owned contact endpoint. Themis never fetches this URL
  * from its server and never forwards authentication credentials to it.
@@ -34,7 +45,7 @@ export const publicServiceEndpointUrlSchema = z.string().trim().max(2_048).url()
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Agent endpoints must be credential-free HTTPS URLs." });
   }
   const hostname = url.hostname.toLowerCase();
-  if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || isPrivateIpv4Host(hostname)) {
+  if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || isPrivateIpv4Host(hostname) || isPrivateIpv6Host(hostname)) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Agent endpoints must not target local or private network hosts." });
   }
 });
@@ -48,6 +59,16 @@ export const serviceEndpointDescriptorSchema = z.object({
 
 export type ServiceEndpointDescriptor = z.infer<typeof serviceEndpointDescriptorSchema>;
 
+/**
+ * An externally hosted A2A Agent Card. Themis stores this pointer only: it
+ * does not fetch it from the server, proxy A2A calls, or forward credentials.
+ */
+export const serviceA2aDescriptorSchema = z.object({
+  agentCardUrl: publicServiceEndpointUrlSchema,
+}).strict();
+
+export type ServiceA2aDescriptor = z.infer<typeof serviceA2aDescriptorSchema>;
+
 export const legalServiceSchema = z.object({
   id: uuidSchema,
   onchainServiceId: z.string().min(1).max(128).nullable(),
@@ -60,6 +81,7 @@ export const legalServiceSchema = z.object({
   metadataUri: z.string().url().max(2_048).nullable(),
   metadataHash: hash256Schema.nullable(),
   integration: serviceEndpointDescriptorSchema.nullable(),
+  a2a: serviceA2aDescriptorSchema.nullable(),
   availability: serviceAvailabilitySchema,
   source: serviceSourceSchema,
   completedMatterCount: z.number().int().nonnegative(),

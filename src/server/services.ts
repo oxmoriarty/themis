@@ -19,6 +19,7 @@ type ServiceRow = {
   agent_endpoint_url: string | null;
   agent_endpoint_protocol: "themis-service-endpoint-v1" | null;
   agent_endpoint_capabilities: ("INQUIRY" | "MATTER_INTAKE" | "SERVICE_MESSAGE")[] | null;
+  a2a_agent_card_url: string | null;
   availability: "ACTIVE" | "PAUSED" | "INACTIVE";
   source: "REAL" | "SEED";
   completed_matter_count: number;
@@ -46,6 +47,7 @@ function mapService(row: ServiceRow) {
     integration: row.agent_endpoint_url && row.agent_endpoint_protocol && row.agent_endpoint_capabilities
       ? { protocol: row.agent_endpoint_protocol, url: row.agent_endpoint_url, capabilities: row.agent_endpoint_capabilities }
       : null,
+    a2a: row.a2a_agent_card_url ? { agentCardUrl: row.a2a_agent_card_url } : null,
     availability: row.availability,
     source: row.source,
     completedMatterCount: row.completed_matter_count,
@@ -54,7 +56,7 @@ function mapService(row: ServiceRow) {
   };
 }
 
-const serviceSelect = "id, onchain_service_id, owner_wallet:wallet_identities!services_owner_wallet_id_fkey(address), name, description, services, specialties, jurisdictions, metadata_uri, metadata_hash, agent_endpoint_url, agent_endpoint_protocol, agent_endpoint_capabilities, availability, source, completed_matter_count, created_at, updated_at";
+const serviceSelect = "id, onchain_service_id, owner_wallet:wallet_identities!services_owner_wallet_id_fkey(address), name, description, services, specialties, jurisdictions, metadata_uri, metadata_hash, agent_endpoint_url, agent_endpoint_protocol, agent_endpoint_capabilities, a2a_agent_card_url, availability, source, completed_matter_count, created_at, updated_at";
 
 export async function discoverServices(
   client: SupabaseClient,
@@ -114,6 +116,7 @@ export async function registerServiceProfile(
       agent_endpoint_url: input.integration?.url ?? null,
       agent_endpoint_protocol: input.integration?.protocol ?? null,
       agent_endpoint_capabilities: input.integration?.capabilities ?? null,
+      a2a_agent_card_url: input.a2a?.agentCardUrl ?? null,
       availability: "ACTIVE",
       source: "REAL",
     })

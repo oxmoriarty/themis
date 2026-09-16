@@ -17,6 +17,7 @@ const row = {
   agent_endpoint_url: "https://review.example.com/themis/contact",
   agent_endpoint_protocol: "themis-service-endpoint-v1" as const,
   agent_endpoint_capabilities: ["INQUIRY", "MATTER_INTAKE"] as const,
+  a2a_agent_card_url: "https://review.example.com/.well-known/agent-card.json",
   availability: "ACTIVE" as const,
   source: "REAL" as const,
   completed_matter_count: 0,
@@ -74,6 +75,7 @@ describe("public service discovery", () => {
       name: "Contract review agent",
       ownerWallet: row.owner_wallet.address,
       integration: { url: row.agent_endpoint_url, capabilities: row.agent_endpoint_capabilities },
+      a2a: { agentCardUrl: row.a2a_agent_card_url },
     });
     expect(mock.calls).toEqual(expect.arrayContaining([
       { method: "eq", args: ["availability", "ACTIVE"] },
