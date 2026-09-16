@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Scale, ShieldCheck, Waypoints } from "lucide-react";
 
-import logoWhite from "../../docs-source/branding/themisLogoWhite.png";
+import logoWhite from "@/assets/branding/themisLogoWhite.png";
 import { AppShell } from "@/components/app-shell";
 
 export default function HomePage() {

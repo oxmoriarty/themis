@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { ArrowUpRight, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 
-import logoBlack from "../../docs-source/branding/themisLogoBlack.png";
-import logoWhite from "../../docs-source/branding/themisLogoWhite.png";
+import logoBlack from "@/assets/branding/themisLogoBlack.png";
+import logoWhite from "@/assets/branding/themisLogoWhite.png";
 import { SessionProvider, useSession } from "@/components/session-context";
 
 const navItems = [
