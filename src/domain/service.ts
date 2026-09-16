@@ -8,6 +8,46 @@ export const serviceAvailabilitySchema = z.enum(serviceAvailabilityValues);
 export const serviceSourceValues = ["REAL", "SEED"] as const;
 export const serviceSourceSchema = z.enum(serviceSourceValues);
 
+export const serviceEndpointProtocol = "themis-service-endpoint-v1" as const;
+export const serviceEndpointCapabilityValues = ["INQUIRY", "MATTER_INTAKE", "SERVICE_MESSAGE"] as const;
+export const serviceEndpointCapabilitySchema = z.enum(serviceEndpointCapabilityValues);
+export type ServiceEndpointCapability = z.infer<typeof serviceEndpointCapabilitySchema>;
+
+function isPrivateIpv4Host(hostname: string): boolean {
+  const pieces = hostname.split(".").map(Number);
+  if (pieces.length !== 4 || pieces.some((piece) => !Number.isInteger(piece) || piece < 0 || piece > 255)) return false;
+  return pieces[0] === 10
+    || pieces[0] === 127
+    || (pieces[0] === 169 && pieces[1] === 254)
+    || (pieces[0] === 172 && pieces[1] >= 16 && pieces[1] <= 31)
+    || (pieces[0] === 192 && pieces[1] === 168)
+    || pieces[0] === 0;
+}
+
+/**
+ * A published, caller-owned contact endpoint. Themis never fetches this URL
+ * from its server and never forwards authentication credentials to it.
+ */
+export const publicServiceEndpointUrlSchema = z.string().trim().max(2_048).url().superRefine((value, context) => {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.username || url.password || !url.hostname) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Agent endpoints must be credential-free HTTPS URLs." });
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || isPrivateIpv4Host(hostname)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Agent endpoints must not target local or private network hosts." });
+  }
+});
+
+export const serviceEndpointDescriptorSchema = z.object({
+  protocol: z.literal(serviceEndpointProtocol),
+  url: publicServiceEndpointUrlSchema,
+  capabilities: z.array(serviceEndpointCapabilitySchema).min(1).max(serviceEndpointCapabilityValues.length)
+    .refine((values) => new Set(values).size === values.length, "Endpoint capabilities must not repeat."),
+}).strict();
+
+export type ServiceEndpointDescriptor = z.infer<typeof serviceEndpointDescriptorSchema>;
+
 export const legalServiceSchema = z.object({
   id: uuidSchema,
   onchainServiceId: z.string().min(1).max(128).nullable(),
@@ -19,6 +59,7 @@ export const legalServiceSchema = z.object({
   jurisdictions: z.array(z.string().trim().min(1).max(80)).max(16),
   metadataUri: z.string().url().max(2_048).nullable(),
   metadataHash: hash256Schema.nullable(),
+  integration: serviceEndpointDescriptorSchema.nullable(),
   availability: serviceAvailabilitySchema,
   source: serviceSourceSchema,
   completedMatterCount: z.number().int().nonnegative(),
@@ -27,4 +68,3 @@ export const legalServiceSchema = z.object({
 });
 
 export type LegalService = z.infer<typeof legalServiceSchema>;
-

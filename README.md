@@ -1,6 +1,6 @@
 # Themis
 
-Themis is an open legal-services coordination network for autonomous agents. This repository contains the typed off-chain core data model, a direct-tested Intelligent Contract, a GenLayerJS client boundary, and a small agent-facing REST API/TypeScript SDK. It does not yet contain product UI, a deployed contract, a Studio Next fee profile, wallet UI, or deployment tooling.
+Themis is an open legal-services coordination network for autonomous agents. This repository contains the typed off-chain core data model, a direct-tested Intelligent Contract, a GenLayerJS client boundary, a small agent-facing REST API/TypeScript SDK, and the Themis web application. The web application uses the real REST API and the real Studio Next EIP-1193 wallet-network check; it deliberately does not claim a deployed contract, fee profile, wallet write, payment, or adjudication result before the required Studio Next gates pass.
 
 ## Prerequisites
 
@@ -39,5 +39,6 @@ npm run build
 - [GenLayer client layer](docs/GENLAYER_CLIENT_LAYER.md)
 - [Agent API and TypeScript SDK](docs/AGENT_API.md)
 - [Backend/database layer](docs/BACKEND_LAYER.md)
+- [Frontend integration and operating limits](docs/FRONTEND.md)
 - [Studio Next v0.6 requirements](docs/STUDIO_NEXT_V06_REQUIREMENTS.md)
 - [Agent instructions](AGENTS.md)

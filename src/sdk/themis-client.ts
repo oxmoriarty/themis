@@ -4,13 +4,22 @@ import {
   createMatterRequestSchema,
   createMatterResponseSchema,
   matterStatusResponseSchema,
+  ownedServicesResponseSchema,
+  registerServiceRequestSchema,
+  registerServiceResponseSchema,
+  serviceContactRequestSchema,
+  serviceContactResponseSchema,
   serviceProfileResponseSchema,
   serviceSearchQuerySchema,
   serviceSearchResponseSchema,
   type CreateMatterRequest,
   type MatterStatus,
+  type RegisterServiceRequest,
+  type ServiceContactRequest,
+  type ServiceContactResponse,
   type ServiceSearchQuery,
 } from "@/api/contracts";
+import type { LegalService } from "@/domain/service";
 
 const apiErrorBodySchema = z.object({
   error: z.object({
@@ -24,6 +33,8 @@ const clientOptionsSchema = z.object({
   accessToken: z.string().min(1).optional(),
   fetch: z.custom<typeof fetch>((value) => typeof value === "function").optional(),
 });
+
+type FetchRequestInit = NonNullable<Parameters<typeof fetch>[1]>;
 
 export class ThemisApiError extends Error {
   public constructor(
@@ -62,6 +73,53 @@ export class ThemisClient {
     get: async (serviceId: string) => {
       const id = z.string().uuid().parse(serviceId);
       return (await this.request(`/services/${encodeURIComponent(id)}`, { method: "GET" }, serviceProfileResponseSchema)).service;
+    },
+    register: async (input: RegisterServiceRequest) => {
+      const body = registerServiceRequestSchema.parse(input);
+      this.requireAuthentication();
+      return (await this.request(
+        "/services",
+        { method: "POST", body: JSON.stringify(body) },
+        registerServiceResponseSchema,
+        true,
+      )).service;
+    },
+    mine: async () => {
+      this.requireAuthentication();
+      return (await this.request("/services/mine", { method: "GET" }, ownedServicesResponseSchema, true)).services;
+    },
+    /**
+     * Sends an explicitly caller-authored request to a provider's published
+     * endpoint. It is not A2A, is never proxied by Themis, and sends no Themis
+     * access token or wallet credential to the provider.
+     */
+    contact: async (service: LegalService, rawInput: ServiceContactRequest): Promise<ServiceContactResponse> => {
+      const integration = service.integration;
+      if (!integration) throw new ThemisApiError("SERVICE_ENDPOINT_UNAVAILABLE", "This legal service agent has not published a programmatic contact endpoint.");
+      const input = serviceContactRequestSchema.parse(rawInput);
+      if (!integration.capabilities.includes(input.operation)) {
+        throw new ThemisApiError("SERVICE_OPERATION_UNSUPPORTED", "This legal service agent has not declared support for that contact operation.");
+      }
+
+      let response: Response;
+      try {
+        response = await this.fetchImplementation(integration.url, {
+          method: "POST",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ protocol: integration.protocol, ...input }),
+          credentials: "omit",
+          redirect: "error",
+          referrerPolicy: "no-referrer",
+        });
+      } catch {
+        throw new ThemisApiError("SERVICE_ENDPOINT_UNREACHABLE", "The provider's published endpoint could not be reached.");
+      }
+      if (!response.ok) throw new ThemisApiError("SERVICE_ENDPOINT_HTTP_ERROR", `The provider endpoint returned HTTP ${response.status}.`, response.status);
+      const parsed = serviceContactResponseSchema.safeParse(await response.json().catch(() => null));
+      if (!parsed.success || parsed.data.requestId !== input.requestId) {
+        throw new ThemisApiError("SERVICE_ENDPOINT_INVALID_RESPONSE", "The provider endpoint returned an invalid or mismatched acknowledgement.", response.status);
+      }
+      return parsed.data;
     },
   };
 
@@ -111,7 +169,7 @@ export class ThemisClient {
 
   private async request<T extends z.ZodTypeAny>(
     path: string,
-    init: RequestInit,
+    init: FetchRequestInit,
     schema: T,
     authenticated = false,
   ): Promise<z.output<T>> {

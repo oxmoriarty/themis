@@ -2,7 +2,7 @@
 
 ## Current project state
 
-Phase Zero, repository/data-model work, the direct-tested Intelligent Contract layer, and the typed GenLayerJS client wrapper are complete. The application UI, wallet UI, deployment/indexing layer, remote integration suite, and Studio Next deployment are not. Read [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), `BUILD_SPEC.md`, `AGENT_TANK_RULES.md`, and every file in `docs-source/genlayer-docs/` before changing product, contract, network, wallet, or deployment behavior. Treat the supplied GenLayer documentation as the source of truth; reconcile later official release guidance against it rather than substituting remembered APIs.
+Phase Zero, repository/data-model work, the typed GenLayerJS client wrapper, and a target-schema-validated Intelligent Contract are complete. Its direct test suite exists, but must be rerun after the 2026-09-16 runner/API migration: the current Windows `gltest` harness fails during its own tempfile setup before contract execution. The application UI, wallet UI, deployment/indexing layer, remote integration suite, and Studio Next deployment are not complete. Read [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), `BUILD_SPEC.md`, `AGENT_TANK_RULES.md`, and every file in `docs-source/genlayer-docs/` before changing product, contract, network, wallet, or deployment behavior. Treat the supplied GenLayer documentation as the source of truth; reconcile later official release guidance against it rather than substituting remembered APIs.
 
 `docs-source/branding/themisLogoBlack.png` and `docs-source/branding/themisLogoWhite.png` are the official logo variants. Preserve their aspect ratio and colors; use black on light surfaces and white on dark surfaces.
 
@@ -15,12 +15,13 @@ Phase Zero, repository/data-model work, the direct-tested Intelligent Contract l
 - Every generated single-file Intelligent Contract must begin on its literal first line with:
 
   ```python
-  # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+  # { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
   ```
 
-  Never use `py-genlayer:test`, `py-genlayer:latest`, or an unversioned runner.
-- Use the validated installed SDK syntax only. The bundled aggregate reference contains conflicting-looking examples around contract decorators and sender accessors; run `genvm-lint check --json` and direct tests rather than mixing variants.
+  Never use `py-genlayer:test`, `py-genlayer:latest`, an unversioned runner, or the retired `1jb45…`/`9b8…` runner hashes. The `5jyc…` pin and the current contract schema were confirmed by the Studio schema endpoint for chain `61997` on 2026-09-16. This is a schema-compatibility gate, not a Studio Next deployment or execution result.
+- Use the target-verified runner/API syntax only: `import genlayer as gl`, `gl.contract.Contract`, `gl.storage.TreeMap`, typed `gl.Address`/`gl.u64`, and `from genlayer.storage import allow as allow_storage`. The supplied aggregate reference contains older incompatible examples; run `genvm-lint check --json` and direct tests rather than mixing variants.
 - Use storage-safe GenLayer types (`TreeMap`, `DynArray`, typed dataclasses, `Address`, `u256` for GEN), not Python `dict`/`list` for persisted state, floats for value, or unsupported imports.
+- Allocate generic storage types in constructors with `gl.storage.inmem_allocate(FullySpecializedType)`; never instantiate `TreeMap` or `DynArray` with `()`.
 - Deterministic logic stays outside nondeterministic blocks. LLM/web work belongs inside an equivalence-principle pattern.
 - Never use `strict_eq` for an LLM decision. A schema-only validator is an insecure anti-pattern. For Themis adjudication, validators must independently recompute and substantively compare the closed decision.
 - Treat `gl.vm.Return`, `gl.vm.UserError`, and `gl.vm.VMError` explicitly before accessing result data. Malformed/unknown LLM outcomes should not become success.

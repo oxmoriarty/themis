@@ -1,4 +1,5 @@
-# Resolved against the local contract suite on 2026-09-15.
-# The pinned contract runner is declared in the first line of each contract.
-genlayer-test==0.29.2
-genvm-linter==0.11.0
+# Studio Next runner `5jyc…` uses the matching RC API surface. The immutable
+# runner is declared in the first line of each contract; never use aliases.
+genlayer-py @ git+https://github.com/genlayerlabs/genlayer-py@v0.19-dev
+genlayer-test @ git+https://github.com/genlayerlabs/genlayer-testing-suite@v0.30-dev
+genvm-linter @ git+https://github.com/genlayerlabs/genvm-linter@v0.11-dev

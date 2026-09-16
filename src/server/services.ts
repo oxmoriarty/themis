@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { serviceSearchQuerySchema } from "@/api/contracts";
+import { registerServiceRequestSchema, serviceSearchQuerySchema } from "@/api/contracts";
+import { requireWalletIdentity } from "@/server/matters";
 import { ApiError } from "@/server/errors";
 
 type ServiceRow = {
@@ -15,6 +16,9 @@ type ServiceRow = {
   jurisdictions: string[];
   metadata_uri: string | null;
   metadata_hash: string | null;
+  agent_endpoint_url: string | null;
+  agent_endpoint_protocol: "themis-service-endpoint-v1" | null;
+  agent_endpoint_capabilities: ("INQUIRY" | "MATTER_INTAKE" | "SERVICE_MESSAGE")[] | null;
   availability: "ACTIVE" | "PAUSED" | "INACTIVE";
   source: "REAL" | "SEED";
   completed_matter_count: number;
@@ -39,6 +43,9 @@ function mapService(row: ServiceRow) {
     jurisdictions: row.jurisdictions,
     metadataUri: row.metadata_uri,
     metadataHash: row.metadata_hash,
+    integration: row.agent_endpoint_url && row.agent_endpoint_protocol && row.agent_endpoint_capabilities
+      ? { protocol: row.agent_endpoint_protocol, url: row.agent_endpoint_url, capabilities: row.agent_endpoint_capabilities }
+      : null,
     availability: row.availability,
     source: row.source,
     completedMatterCount: row.completed_matter_count,
@@ -47,7 +54,7 @@ function mapService(row: ServiceRow) {
   };
 }
 
-const serviceSelect = "id, onchain_service_id, owner_wallet:wallet_identities!services_owner_wallet_id_fkey(address), name, description, services, specialties, jurisdictions, metadata_uri, metadata_hash, availability, source, completed_matter_count, created_at, updated_at";
+const serviceSelect = "id, onchain_service_id, owner_wallet:wallet_identities!services_owner_wallet_id_fkey(address), name, description, services, specialties, jurisdictions, metadata_uri, metadata_hash, agent_endpoint_url, agent_endpoint_protocol, agent_endpoint_capabilities, availability, source, completed_matter_count, created_at, updated_at";
 
 export async function discoverServices(
   client: SupabaseClient,
@@ -85,4 +92,45 @@ export async function getPublicService(client: SupabaseClient, serviceId: string
   if (error) throw new ApiError(500, "DATABASE_ERROR", "The service profile could not be read.");
   if (!data) throw new ApiError(404, "SERVICE_NOT_FOUND", "The legal service agent was not found.");
   return mapService(data as unknown as ServiceRow);
+}
+
+export async function registerServiceProfile(
+  client: SupabaseClient,
+  userId: string,
+  rawInput: z.input<typeof registerServiceRequestSchema>,
+) {
+  const input = registerServiceRequestSchema.parse(rawInput);
+  const ownerWalletId = await requireWalletIdentity(client, userId);
+  const { data, error } = await client
+    .from("services")
+    .insert({
+      owner_wallet_id: ownerWalletId,
+      name: input.name,
+      description: input.description,
+      services: input.services,
+      specialties: input.specialties,
+      jurisdictions: input.jurisdictions,
+      metadata_uri: input.metadataUri ?? null,
+      agent_endpoint_url: input.integration?.url ?? null,
+      agent_endpoint_protocol: input.integration?.protocol ?? null,
+      agent_endpoint_capabilities: input.integration?.capabilities ?? null,
+      availability: "ACTIVE",
+      source: "REAL",
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) throw new ApiError(500, "DATABASE_ERROR", "The legal service agent profile could not be registered.");
+  return getPublicService(client, (data as { id: string }).id);
+}
+
+export async function getOwnedServices(client: SupabaseClient, userId: string) {
+  const ownerWalletId = await requireWalletIdentity(client, userId);
+  const { data, error } = await client
+    .from("services")
+    .select(serviceSelect)
+    .eq("owner_wallet_id", ownerWalletId)
+    .order("updated_at", { ascending: false });
+  if (error) throw new ApiError(500, "DATABASE_ERROR", "Your service profiles could not be read.");
+  return ((data ?? []) as unknown as ServiceRow[]).map(mapService);
 }

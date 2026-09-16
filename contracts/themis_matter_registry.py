@@ -1,8 +1,9 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
 from dataclasses import dataclass
 
-from genlayer import *
+import genlayer as gl
+from genlayer.storage import allow as allow_storage
 
 
 MAX_SERVICE_ID_CHARACTERS = 64
@@ -39,9 +40,9 @@ DECISION_INCONCLUSIVE = "INCONCLUSIVE"
 @dataclass
 class RegistryRecord:
     kind: str
-    owner: Address
-    client: Address
-    provider: Address
+    owner: gl.Address
+    client: gl.Address
+    provider: gl.Address
     service_id: str
     display_label: str
     metadata_hash: str
@@ -49,23 +50,23 @@ class RegistryRecord:
     question: str
     template_version: str
     state: str
-    evidence_count: u64
+    evidence_count: gl.u64
     decision: str
-    submitted_by: Address
+    submitted_by: gl.Address
     text: str
     active: bool
 
 
-RecordMap = TreeMap[str, RegistryRecord]
+RecordMap = gl.storage.TreeMap[str, RegistryRecord]
 
 
-class ThemisMatterRegistry(gl.Contract):
+class ThemisMatterRegistry(gl.contract.Contract):
     records: RecordMap
-    next_matter_id: u64
+    next_matter_id: gl.u64
 
     def __init__(self) -> None:
-        self.records = RecordMap()
-        self.next_matter_id = u64(1)
+        self.records = gl.storage.inmem_allocate(RecordMap)
+        self.next_matter_id = gl.u64(1)
 
     @gl.public.write
     def register_service(self, service_id: str, display_label: str, metadata_hash: str) -> None:
@@ -83,7 +84,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[service_key] = RegistryRecord(
             kind=KIND_SERVICE, owner=sender, client=sender, provider=sender,
             service_id=service_id, display_label=display_label, metadata_hash=metadata_hash,
-            agreement="", question="", template_version="", state="", evidence_count=u64(0),
+            agreement="", question="", template_version="", state="", evidence_count=gl.u64(0),
             decision="", submitted_by=sender, text="", active=True,
         )
 
@@ -113,7 +114,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._service_key(service_id)] = service
 
     @gl.public.write
-    def create_matter(self, service_id: str, agreement: str, question: str) -> u64:
+    def create_matter(self, service_id: str, agreement: str, question: str) -> gl.u64:
         service = self._require_service(service_id)
         if not service.active:
             raise gl.vm.UserError("[EXPECTED] service is inactive")
@@ -125,18 +126,18 @@ class ThemisMatterRegistry(gl.Contract):
         self._require_max_length(question, MAX_QUESTION_CHARACTERS, "question")
 
         matter_id = self.next_matter_id
-        self.next_matter_id = self.next_matter_id + u64(1)
+        self.next_matter_id = self.next_matter_id + gl.u64(1)
         sender = gl.message.sender_address
         self.records[self._matter_key(matter_id)] = RegistryRecord(
             kind=KIND_MATTER, owner=service.owner, client=sender, provider=service.owner,
             service_id=service_id, display_label="", metadata_hash="", agreement=agreement,
             question=question, template_version=TEMPLATE_VERSION, state=STATE_SERVICE_REQUESTED,
-            evidence_count=u64(0), decision="", submitted_by=sender, text="", active=True,
+            evidence_count=gl.u64(0), decision="", submitted_by=sender, text="", active=True,
         )
         return matter_id
 
     @gl.public.write
-    def accept_matter(self, matter_id: u64) -> None:
+    def accept_matter(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         if matter.provider != gl.message.sender_address:
             raise gl.vm.UserError("[EXPECTED] only the provider can accept")
@@ -145,7 +146,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def open_evidence(self, matter_id: u64) -> None:
+    def open_evidence(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         self._require_participant(matter)
         self._require_state(matter, STATE_ACCEPTED)
@@ -153,13 +154,13 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def append_consensus_evidence(self, matter_id: u64, text: str) -> None:
+    def append_consensus_evidence(self, matter_id: gl.u64, text: str) -> None:
         matter = self._require_matter(matter_id)
         self._require_participant(matter)
         self._require_state(matter, STATE_EVIDENCE_OPEN)
         self._require_non_empty(text, "evidence text")
         self._require_max_length(text, MAX_EVIDENCE_CHARACTERS, "evidence text")
-        if matter.evidence_count >= u64(MAX_EVIDENCE_ENTRIES):
+        if matter.evidence_count >= gl.u64(MAX_EVIDENCE_ENTRIES):
             raise gl.vm.UserError("[EXPECTED] evidence entry limit reached")
 
         sender = gl.message.sender_address
@@ -167,14 +168,14 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._evidence_key(matter_id, entry_index)] = RegistryRecord(
             kind=KIND_EVIDENCE, owner=sender, client=sender, provider=sender,
             service_id="", display_label="", metadata_hash="", agreement="", question="",
-            template_version="", state="", evidence_count=u64(0), decision="",
+            template_version="", state="", evidence_count=gl.u64(0), decision="",
             submitted_by=sender, text=text, active=True,
         )
-        matter.evidence_count = matter.evidence_count + u64(1)
+        matter.evidence_count = matter.evidence_count + gl.u64(1)
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def start_service(self, matter_id: u64) -> None:
+    def start_service(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         if matter.provider != gl.message.sender_address:
             raise gl.vm.UserError("[EXPECTED] only the provider can start the service")
@@ -183,7 +184,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def request_completion(self, matter_id: u64) -> None:
+    def request_completion(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         if matter.provider != gl.message.sender_address:
             raise gl.vm.UserError("[EXPECTED] only the provider can request completion")
@@ -192,7 +193,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def confirm_completion(self, matter_id: u64) -> None:
+    def confirm_completion(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         if matter.client != gl.message.sender_address:
             raise gl.vm.UserError("[EXPECTED] only the client can confirm completion")
@@ -201,7 +202,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def open_dispute(self, matter_id: u64) -> None:
+    def open_dispute(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         self._require_participant(matter)
         if (
@@ -214,7 +215,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def begin_adjudication(self, matter_id: u64) -> None:
+    def begin_adjudication(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         self._require_participant(matter)
         self._require_state(matter, STATE_DISPUTED)
@@ -222,7 +223,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def adjudicate_dispute(self, matter_id: u64) -> None:
+    def adjudicate_dispute(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         self._require_participant(matter)
         self._require_state(matter, STATE_UNDER_REVIEW)
@@ -262,7 +263,7 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.write
-    def cancel_matter(self, matter_id: u64) -> None:
+    def cancel_matter(self, matter_id: gl.u64) -> None:
         matter = self._require_matter(matter_id)
         self._require_participant(matter)
         if matter.state == STATE_DECIDED_PENDING_FINALITY or matter.state == STATE_COMPLETED:
@@ -273,28 +274,28 @@ class ThemisMatterRegistry(gl.Contract):
         self.records[self._matter_key(matter_id)] = matter
 
     @gl.public.view
-    def get_matter_state(self, matter_id: u64) -> str:
+    def get_matter_state(self, matter_id: gl.u64) -> str:
         return self._require_matter(matter_id).state
 
     @gl.public.view
-    def get_matter_decision(self, matter_id: u64) -> str:
+    def get_matter_decision(self, matter_id: gl.u64) -> str:
         return self._require_matter(matter_id).decision
 
     @gl.public.view
-    def get_evidence_count(self, matter_id: u64) -> u64:
+    def get_evidence_count(self, matter_id: gl.u64) -> gl.u64:
         return self._require_matter(matter_id).evidence_count
 
     @gl.public.view
-    def get_service_owner(self, service_id: str) -> Address:
+    def get_service_owner(self, service_id: str) -> gl.Address:
         return self._require_service(service_id).owner
 
     @gl.public.view
     def get_service_metadata_hash(self, service_id: str) -> str:
         return self._require_service(service_id).metadata_hash
 
-    def _copy_evidence_bundle(self, matter_id: u64, evidence_count: u64) -> str:
+    def _copy_evidence_bundle(self, matter_id: gl.u64, evidence_count: gl.u64) -> str:
         bundle = ""
-        entry_index = u64(0)
+        entry_index = gl.u64(0)
         while entry_index < evidence_count:
             entry = gl.storage.copy_to_memory(
                 self.records[self._evidence_key(matter_id, entry_index)]
@@ -305,7 +306,7 @@ class ThemisMatterRegistry(gl.Contract):
                 bundle + "<evidence index=\"" + str(entry_index) + "\" submitted_by=\""
                 + str(entry.submitted_by) + "\">\n" + entry.text + "\n</evidence>\n"
             )
-            entry_index = entry_index + u64(1)
+            entry_index = entry_index + gl.u64(1)
         return bundle
 
     def _build_adjudication_prompt(self, matter: RegistryRecord, evidence_bundle: str) -> str:
@@ -333,7 +334,7 @@ class ThemisMatterRegistry(gl.Contract):
             raise gl.vm.UserError("[EXPECTED] invalid service record")
         return service
 
-    def _require_matter(self, matter_id: u64) -> RegistryRecord:
+    def _require_matter(self, matter_id: gl.u64) -> RegistryRecord:
         matter_key = self._matter_key(matter_id)
         if not self._has_record(matter_key):
             raise gl.vm.UserError("[EXPECTED] unknown matter")
@@ -368,10 +369,10 @@ class ThemisMatterRegistry(gl.Contract):
     def _service_key(self, service_id: str) -> str:
         return "service:" + service_id
 
-    def _matter_key(self, matter_id: u64) -> str:
+    def _matter_key(self, matter_id: gl.u64) -> str:
         return "matter:" + str(matter_id)
 
-    def _evidence_key(self, matter_id: u64, entry_index: u64) -> str:
+    def _evidence_key(self, matter_id: gl.u64, entry_index: gl.u64) -> str:
         return "evidence:" + str(matter_id) + ":" + str(entry_index)
 
     def _is_valid_decision(self, decision: str) -> bool:

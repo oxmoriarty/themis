@@ -15,7 +15,7 @@ coverage/
 
 # Python tooling reserved for the later Intelligent Contract phase
 .venv/
+.venv-contracts/
 __pycache__/
 .pytest_cache/
 artifacts/
-
